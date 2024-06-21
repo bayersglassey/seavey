@@ -29,7 +29,15 @@ OPERATORS = r"""
     <= >= == !=
     ; { } , : = ( ) [ ] .
     & ! ~ - + * / % < > ^ | ?
-"""
+""".split()
+
+KEYWORDS = """
+    auto break case char const continue default
+    do double else enum extern float for goto if
+    int long register return short signed sizeof
+    static struct switch typedef union unsigned
+    void volatile while
+""".split()
 
 D = r'[0-9]'
 L = r'[a-zA-Z_]'
@@ -46,6 +54,7 @@ TOKEN_DESCRIPTIONS = (
     ('mlcomment', r'/\*.*?\*/'),
 
     # Language elements
+    ('keyword', '|'.join(KEYWORDS)),
     ('identifier', rf'{L}{LD}*'),
     ('lithex', rf'0[xX]{H}+{IS}*'),
     ('litoct', rf'0{D}+{IS}*'),
@@ -57,8 +66,7 @@ TOKEN_DESCRIPTIONS = (
         rf'{D}+\.{D}*(?:{E})?{FS}?',
     ))),
     ('litstring', r'L?"(?:[^"]|\\.)*"'),
-    ('operator', '|'.join(
-        f'(?:{re.escape(op)})' for op in OPERATORS.split())),
+    ('operator', '|'.join(re.escape(op) for op in OPERATORS)),
 
     # Preprocessor
     ('ppjoin', r'##'),
