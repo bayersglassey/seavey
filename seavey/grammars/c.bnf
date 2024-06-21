@@ -24,9 +24,9 @@ postfix_expression
 	| postfix_expression '(' ')'
 	| postfix_expression '(' argument_expression_list ')'
 	| postfix_expression '.' IDENTIFIER
-	| postfix_expression PTR_OP IDENTIFIER
-	| postfix_expression INC_OP
-	| postfix_expression DEC_OP
+	| postfix_expression '->' IDENTIFIER
+	| postfix_expression '++'
+	| postfix_expression '--'
 	;
 
 argument_expression_list
@@ -36,11 +36,11 @@ argument_expression_list
 
 unary_expression
 	: postfix_expression
-	| INC_OP unary_expression
-	| DEC_OP unary_expression
+	| '++' unary_expression
+	| '--' unary_expression
 	| unary_operator cast_expression
-	| SIZEOF unary_expression
-	| SIZEOF '(' type_name ')'
+	| 'sizeof' unary_expression
+	| 'sizeof' '(' type_name ')'
 	;
 
 unary_operator
@@ -72,22 +72,22 @@ additive_expression
 
 shift_expression
 	: additive_expression
-	| shift_expression LEFT_OP additive_expression
-	| shift_expression RIGHT_OP additive_expression
+	| shift_expression '<<' additive_expression
+	| shift_expression '>>' additive_expression
 	;
 
 relational_expression
 	: shift_expression
 	| relational_expression '<' shift_expression
 	| relational_expression '>' shift_expression
-	| relational_expression LE_OP shift_expression
-	| relational_expression GE_OP shift_expression
+	| relational_expression '<=' shift_expression
+	| relational_expression '>=' shift_expression
 	;
 
 equality_expression
 	: relational_expression
-	| equality_expression EQ_OP relational_expression
-	| equality_expression NE_OP relational_expression
+	| equality_expression '==' relational_expression
+	| equality_expression '!=' relational_expression
 	;
 
 and_expression
@@ -107,12 +107,12 @@ inclusive_or_expression
 
 logical_and_expression
 	: inclusive_or_expression
-	| logical_and_expression AND_OP inclusive_or_expression
+	| logical_and_expression '&&' inclusive_or_expression
 	;
 
 logical_or_expression
 	: logical_and_expression
-	| logical_or_expression OR_OP logical_and_expression
+	| logical_or_expression '||' logical_and_expression
 	;
 
 conditional_expression
@@ -127,16 +127,16 @@ assignment_expression
 
 assignment_operator
 	: '='
-	| MUL_ASSIGN
-	| DIV_ASSIGN
-	| MOD_ASSIGN
-	| ADD_ASSIGN
-	| SUB_ASSIGN
-	| LEFT_ASSIGN
-	| RIGHT_ASSIGN
-	| AND_ASSIGN
-	| XOR_ASSIGN
-	| OR_ASSIGN
+	| '*='
+	| '/='
+	| '*='
+	| '+='
+	| '-='
+	| '<<='
+	| '>>='
+	| '&='
+	| '^='
+	| '|='
 	;
 
 expression
@@ -173,26 +173,26 @@ init_declarator
 	;
 
 storage_class_specifier
-	: TYPEDEF
-	| EXTERN
-	| STATIC
-	| AUTO
-	| REGISTER
+	: 'typedef'
+	| 'extern'
+	| 'static'
+	| 'auto'
+	| 'register'
 	;
 
 type_specifier
-	: VOID
-	| CHAR
-	| SHORT
-	| INT
-	| LONG
-	| FLOAT
-	| DOUBLE
-	| SIGNED
-	| UNSIGNED
+	: 'void'
+	| 'char'
+	| 'short'
+	| 'int'
+	| 'long'
+	| 'float'
+	| 'double'
+	| 'signed'
+	| 'unsigned'
 	| struct_or_union_specifier
 	| enum_specifier
-	| TYPE_NAME
+	| TYPE_NAME                  # This is the dreaded thing...
 	;
 
 struct_or_union_specifier
@@ -202,8 +202,8 @@ struct_or_union_specifier
 	;
 
 struct_or_union
-	: STRUCT
-	| UNION
+	: 'struct'
+	| 'union'
 	;
 
 struct_declaration_list
@@ -234,9 +234,9 @@ struct_declarator
 	;
 
 enum_specifier
-	: ENUM '{' enumerator_list '}'
-	| ENUM IDENTIFIER '{' enumerator_list '}'
-	| ENUM IDENTIFIER
+	: 'enum' '{' enumerator_list '}'
+	| 'enum' IDENTIFIER '{' enumerator_list '}'
+	| 'enum' IDENTIFIER
 	;
 
 enumerator_list
@@ -250,8 +250,8 @@ enumerator
 	;
 
 type_qualifier
-	: CONST
-	| VOLATILE
+	: 'const'
+	| 'volatile'
 	;
 
 declarator
@@ -284,7 +284,7 @@ type_qualifier_list
 
 parameter_type_list
 	: parameter_list
-	| parameter_list ',' ELLIPSIS
+	| parameter_list ',' '...'
 	;
 
 parameter_list
@@ -348,8 +348,8 @@ statement
 
 labeled_statement
 	: IDENTIFIER ':' statement
-	| CASE constant_expression ':' statement
-	| DEFAULT ':' statement
+	| 'case' constant_expression ':' statement
+	| 'default' ':' statement
 	;
 
 compound_statement
@@ -375,24 +375,24 @@ expression_statement
 	;
 
 selection_statement
-	: IF '(' expression ')' statement
-	| IF '(' expression ')' statement ELSE statement
-	| SWITCH '(' expression ')' statement
+	: 'if' '(' expression ')' statement
+	| 'if' '(' expression ')' statement ELSE statement
+	| 'switch' '(' expression ')' statement
 	;
 
 iteration_statement
-	: WHILE '(' expression ')' statement
-	| DO statement WHILE '(' expression ')' ';'
-	| FOR '(' expression_statement expression_statement ')' statement
-	| FOR '(' expression_statement expression_statement expression ')' statement
+	: 'while' '(' expression ')' statement
+	| 'do' statement 'while' '(' expression ')' ';'
+	| 'for' '(' expression_statement expression_statement ')' statement
+	| 'for' '(' expression_statement expression_statement expression ')' statement
 	;
 
 jump_statement
-	: GOTO IDENTIFIER ';'
-	| CONTINUE ';'
-	| BREAK ';'
-	| RETURN ';'
-	| RETURN expression ';'
+	: 'goto' IDENTIFIER ';'
+	| 'continue' ';'
+	| 'break' ';'
+	| 'return' ';'
+	| 'return' expression ';'
 	;
 
 translation_unit

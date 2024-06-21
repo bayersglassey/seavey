@@ -7,17 +7,17 @@ from seavey.tokenize import make_token_regex, tokenize, Token
 
 BNF_TOKEN_DESCRIPTIONS = (
     # Whitespace
-    ('whitespace', r'\s+'),
-    ('comment', r'#[^\n]*'),
+    ('WHITESPACE', r'\s+'),
+    ('COMMENT', r'#[^\n]*'),
 
     # BNF elements
-    ('rule', r'[a-z_][a-z_0-9]*'),
-    ('terminal', r'[A-Z_][A-Z_0-9]*'),
-    ('literal', r"'[^']+'"),
-    ('operator', r'[:;|]'),
+    ('RULE', r'[a-z_][a-z_0-9]*'),
+    ('TERMINAL', r'[A-Z_][A-Z_0-9]*'),
+    ('LITERAL', r"'[^']+'"),
+    ('OPERATOR', r'[:;|]'),
 
     # Other
-    ('unexpected', r'.'),
+    ('UNEXPECTED', r'.'),
 )
 
 
@@ -54,15 +54,15 @@ def bnf_parse(tokens: Iterable[Token]):
                 token.unexpected("No rule")
             case = BNFCase(tokens=[])
             rule.cases.append(case)
-        elif token.kind in ('rule', 'terminal', 'literal'):
+        elif token.kind in ('RULE', 'TERMINAL', 'LITERAL'):
             if rule is None:
-                token.expect('rule')
+                token.expect('RULE')
                 rule = BNFRule(name=token.value, cases=[])
             else:
                 if not case:
                     token.unexpected("No case")
                 case.tokens.append(token)
-        elif token.kind in ('whitespace', 'comment'):
+        elif token.kind in ('WHITESPACE', 'COMMENT'):
             pass
         else:
             token.unexpected()

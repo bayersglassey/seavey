@@ -40,6 +40,12 @@ KEYWORDS = set("""
     void volatile while
 """.split())
 
+PP_KEYWORDS = set("""
+    include define undef
+    if ifdef ifndef
+    error pragma
+""".split())
+
 D = r'[0-9]'
 L = r'[a-zA-Z_]'
 LD = r'[a-zA-Z_0-9]'
@@ -50,30 +56,30 @@ IS = r'[uUlL]'
 
 TOKEN_DESCRIPTIONS = (
     # Whitespace
-    ('whitespace', r'([ \t\v\n\f]|\\\n)+'),
-    ('slcomment', r'//[^\n]*'),
-    ('mlcomment', r'/\*.*?\*/'),
+    ('NEWLINE', r'\n'),
+    ('WHITESPACE', r'([ \t\v\f]|\\\n)+'),
+    ('LINE_COMMENT', r'//[^\n]*'),
+    ('MULTI_COMMENT', r'/\*.*?\*/'),
 
     # Language elements
-    ('identifier', rf'{L}{LD}*'),
-    ('lithex', rf'0[xX]{H}+{IS}*'),
-    ('litoct', rf'0{D}+{IS}*'),
-    ('litint', rf'{D}+{IS}*'),
-    ('litchar', r"L?'(?:[^']|\\.)+'"),
-    ('litfloat', '|'.join((
+    ('IDENTIFIER', rf'{L}{LD}*'),
+    ('CONSTANT', '|'.join((
+        rf'0[xX]{H}+{IS}*',
+        rf'{D}+{IS}*',
+        r"L?'(?:[^']|\\.)+'",
         rf'{D}+{E}{FS}?',
         rf'{D}*\.{D}+(?:{E})?{FS}?',
         rf'{D}+\.{D}*(?:{E})?{FS}?',
     ))),
-    ('litstring', r'L?"(?:[^"]|\\.)*"'),
-    ('operator', '|'.join(re.escape(op) for op in OPERATORS)),
+    ('STRING_LITERAL', r'L?"(?:[^"]|\\.)*"'),
+    ('OPERATOR', '|'.join(re.escape(op) for op in OPERATORS)),
 
     # Preprocessor
-    ('ppjoin', r'##'),
-    ('ppdirective', r'#\s*\w+'),
+    ('PP_HASH', r'#'),
+    ('PP_HASHPAIR', r'##'),
 
     # Other
-    ('unexpected', r'.'),
+    ('UNEXPECTED', r'.'),
 )
 
 
@@ -97,7 +103,9 @@ def main():
         code = open(args.file, 'r').read()
 
     tokens = lex(code)
-    print_tokens(tokens, include_whitespace=args.include_whitespace)
+    print_tokens(tokens,
+        whitespace_kinds=('NEWLINE', 'WHITESPACE'),
+        include_whitespace=args.include_whitespace)
 
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
 import re
 import sys
-from typing import Tuple, Iterable, NamedTuple
+from typing import Tuple, Iterable, Sequence, NamedTuple
 
 
 def make_token_regex(
@@ -41,9 +41,13 @@ def tokenize(code, regex: re.Pattern):
         yield Token(kind, value, pos)
 
 
-def print_tokens(tokens: Iterable[Token], *, include_whitespace=False):
+def print_tokens(tokens: Iterable[Token],
+        *,
+        whitespace_kinds: Sequence[str] = (),
+        include_whitespace=False):
     for token in tokens:
-        if token.kind != 'whitespace':
+        if token.kind in whitespace_kinds:
+            if include_whitespace:
+                print(f'{token.info()} {token.value!r}')
+        else:
             print(f'{token.info()} {token.value}')
-        elif include_whitespace:
-            print(f'{token.info()} {token.value!r}')
