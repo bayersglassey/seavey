@@ -1,7 +1,8 @@
-import sys
 import re
-from typing import NamedTuple
+import sys
 from argparse import ArgumentParser
+
+from seavey.tokenize import make_token_regex, tokenize, print_tokens
 
 
 # Based on:
@@ -31,13 +32,13 @@ OPERATORS = r"""
     & ! ~ - + * / % < > ^ | ?
 """.split()
 
-KEYWORDS = """
+KEYWORDS = set("""
     auto break case char const continue default
     do double else enum extern float for goto if
     int long register return short signed sizeof
     static struct switch typedef union unsigned
     void volatile while
-""".split()
+""".split())
 
 D = r'[0-9]'
 L = r'[a-zA-Z_]'
@@ -54,7 +55,6 @@ TOKEN_DESCRIPTIONS = (
     ('mlcomment', r'/\*.*?\*/'),
 
     # Language elements
-    ('keyword', '|'.join(KEYWORDS)),
     ('identifier', rf'{L}{LD}*'),
     ('lithex', rf'0[xX]{H}+{IS}*'),
     ('litoct', rf'0{D}+{IS}*'),
@@ -77,25 +77,11 @@ TOKEN_DESCRIPTIONS = (
 )
 
 
-TOKEN_REGEX = re.compile(
-    '|'.join(f'(?P<{name}>{pat})'
-        for name, pat in TOKEN_DESCRIPTIONS).encode(),
-    re.M | re.S)
+TOKEN_REGEX = make_token_regex(TOKEN_DESCRIPTIONS)
 
 
-class Token(NamedTuple):
-    kind: str
-    value: str
-    pos: int
-
-
-def tokenize(code):
-    # Based on: https://docs.python.org/3/library/re.html#writing-a-tokenizer
-    for m in TOKEN_REGEX.finditer(code):
-        kind = m.lastgroup
-        value = m.group()
-        pos = m.start()
-        yield Token(kind, value, pos)
+def lex(code):
+    return tokenize(code, TOKEN_REGEX)
 
 
 def main():
@@ -104,16 +90,14 @@ def main():
     parser.add_argument('-w', '--include-whitespace', default=False, action='store_true',
         help="Show whitespace tokens")
     args = parser.parse_args()
+
     if args.file == '-':
-        code = sys.stdin.read().encode()
+        code = sys.stdin.read()
     else:
-        code = open(args.file, 'rb').read()
-    for token in tokenize(code):
-        lead = f'[{token.pos} {token.kind: <10}] '
-        if token.kind != 'whitespace':
-            print(f'{lead}{token.value.decode()}')
-        elif args.include_whitespace:
-            print(f'{lead}{token.value.decode()!r}')
+        code = open(args.file, 'r').read()
+
+    tokens = lex(code)
+    print_tokens(tokens, include_whitespace=args.include_whitespace)
 
 
 if __name__ == '__main__':
