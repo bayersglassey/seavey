@@ -24,8 +24,12 @@ class Token(NamedTuple):
     def info(self):
         return f'[{self.pos} {self.kind: <10}]'
 
-    def unexpected(self, msg):
-        raise TokenizeError(f"Unexpected (msg): {self!r}")
+    def unexpected(self, msg=None):
+        if msg is not None:
+            fullmsg = f"Unexpected ({msg}): {self!r}"
+        else:
+            fullmsg = f"Unexpected: {self!r}"
+        raise TokenizeError(fullmsg)
 
     def expect(self, kind):
         if self.kind != kind:
@@ -44,9 +48,13 @@ def tokenize(code, regex: re.Pattern):
 def print_tokens(tokens: Iterable[Token],
         *,
         whitespace_kinds: Sequence[str] = (),
-        include_whitespace=False):
+        include_whitespace=False,
+        unexpected_kinds: Sequence[str] = (),
+        ):
     for token in tokens:
-        if token.kind in whitespace_kinds:
+        if token.kind in unexpected_kinds:
+            token.unexpected()
+        elif token.kind in whitespace_kinds:
             if include_whitespace:
                 print(f'{token.info()} {token.value!r}')
         else:

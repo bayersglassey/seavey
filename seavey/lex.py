@@ -54,30 +54,42 @@ E = rf'[Ee][+-]?{D}+'
 FS = r'[fFlL]'
 IS = r'[uUlL]'
 
+WHITESPACE_KINDS = ('NEWLINE', 'WHITESPACE')
+
 TOKEN_DESCRIPTIONS = (
+    ###############################################################
     # Whitespace
     ('NEWLINE', r'\n'),
     ('WHITESPACE', r'([ \t\v\f]|\\\n)+'),
-    ('LINE_COMMENT', r'//[^\n]*'),
+    ('LINE_COMMENT', r'//(?:[^\n]|\\\n)*'),
     ('MULTI_COMMENT', r'/\*.*?\*/'),
 
+    ###############################################################
     # Language elements
     ('IDENTIFIER', rf'{L}{LD}*'),
     ('CONSTANT', '|'.join((
         rf'0[xX]{H}+{IS}*',
         rf'{D}+{IS}*',
+
+        # NOTE: beware escaped newlines within token
         r"L?'(?:[^']|\\.)+'",
+
         rf'{D}+{E}{FS}?',
         rf'{D}*\.{D}+(?:{E})?{FS}?',
         rf'{D}+\.{D}*(?:{E})?{FS}?',
     ))),
+
+    # NOTE: beware escaped newlines within token
     ('STRING_LITERAL', r'L?"(?:[^"]|\\.)*"'),
+
     ('OPERATOR', '|'.join(re.escape(op) for op in OPERATORS)),
 
+    ###############################################################
     # Preprocessor
     ('PP_HASH', r'#'),
     ('PP_HASHPAIR', r'##'),
 
+    ###############################################################
     # Other
     ('UNEXPECTED', r'.'),
 )
@@ -90,11 +102,22 @@ def lex(code):
     return tokenize(code, TOKEN_REGEX)
 
 
+def print_c_tokens(tokens, unexpected_ok=False, **kwargs):
+    print_tokens(tokens,
+        whitespace_kinds=WHITESPACE_KINDS,
+        unexpected_kinds=() if unexpected_ok else ('UNEXPECTED',),
+        **kwargs)
+
+
 def main():
     parser = ArgumentParser()
     parser.add_argument('file', nargs='?', default='-')
     parser.add_argument('-w', '--include-whitespace', default=False, action='store_true',
         help="Show whitespace tokens")
+    parser.add_argument('--id', default=False, action='store_true',
+        help="Identity transformation: ideally leaves input unchanged")
+    parser.add_argument('--unexpected-ok', default=False, action='store_true',
+        help="Don't error on unexpected tokens")
     args = parser.parse_args()
 
     if args.file == '-':
@@ -103,9 +126,13 @@ def main():
         code = open(args.file, 'r').read()
 
     tokens = lex(code)
-    print_tokens(tokens,
-        whitespace_kinds=('NEWLINE', 'WHITESPACE'),
-        include_whitespace=args.include_whitespace)
+    if args.id:
+        for token in tokens:
+            sys.stdout.write(token.value)
+    else:
+        print_c_tokens(tokens,
+            include_whitespace=args.include_whitespace,
+            unexpected_ok=args.unexpected_ok)
 
 
 if __name__ == '__main__':
