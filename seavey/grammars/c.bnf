@@ -376,7 +376,7 @@ expression_statement
 
 selection_statement
 	: 'if' '(' expression ')' statement
-	| 'if' '(' expression ')' statement ELSE statement
+	| 'if' '(' expression ')' statement 'else' statement
 	| 'switch' '(' expression ')' statement
 	;
 
