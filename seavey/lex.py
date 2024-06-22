@@ -1,8 +1,10 @@
 import re
 import sys
 from argparse import ArgumentParser
+from typing import Iterable
 
-from seavey.tokenize import make_token_regex, tokenize, print_tokens
+from seavey.sourcefile import SourceFile, LogicalLine
+from seavey.tokenize import Token, make_token_regex, tokenize, print_tokens
 
 
 # Based on:
@@ -54,52 +56,82 @@ E = rf'[Ee][+-]?{D}+'
 FS = r'[fFlL]'
 IS = r'[uUlL]'
 
-WHITESPACE_KINDS = ('NEWLINE', 'WHITESPACE')
+NEWLINE = 'NEWLINE'
+WHITESPACE = 'WHITESPACE'
+LINE_COMMENT = 'LINE_COMMENT'
+MULTI_COMMENT = 'MULTI_COMMENT'
+MULTI_COMMENT_CONTINUATION = 'MULTI_COMMENT_CONTINUATION'
+IDENTIFIER = 'IDENTIFIER'
+CONSTANT = 'CONSTANT'
+STRING_LITERAL = 'STRING_LITERAL'
+OPERATOR = 'OPERATOR'
+PP_HASH = 'PP_HASH'
+PP_HASHPAIR = 'PP_HASHPAIR'
+UNEXPECTED = 'UNEXPECTED'
+
+WHITESPACE_KINDS = (NEWLINE, WHITESPACE)
 
 TOKEN_DESCRIPTIONS = (
     ###############################################################
     # Whitespace
-    ('NEWLINE', r'\n'),
-    ('WHITESPACE', r'([ \t\v\f]|\\\n)+'),
-    ('LINE_COMMENT', r'//(?:[^\n]|\\\n)*'),
-    ('MULTI_COMMENT', r'/\*.*?\*/'),
+    (NEWLINE, r'\n'),
+    (WHITESPACE, r'[ \t\v\f]+'),
+    (LINE_COMMENT, r'//[^\n]*'),
+    (MULTI_COMMENT, r'/\*.*?(\*/|\n)'),
 
     ###############################################################
     # Language elements
-    ('IDENTIFIER', rf'{L}{LD}*'),
-    ('CONSTANT', '|'.join((
+    (IDENTIFIER, rf'{L}{LD}*'),
+    (CONSTANT, '|'.join((
         rf'0[xX]{H}+{IS}*',
         rf'{D}+{IS}*',
-
-        # NOTE: beware escaped newlines within token
         r"L?'(?:[^']|\\.)+'",
-
         rf'{D}+{E}{FS}?',
         rf'{D}*\.{D}+(?:{E})?{FS}?',
         rf'{D}+\.{D}*(?:{E})?{FS}?',
     ))),
-
-    # NOTE: beware escaped newlines within token
-    ('STRING_LITERAL', r'L?"(?:[^"]|\\.)*"'),
-
-    ('OPERATOR', '|'.join(re.escape(op) for op in OPERATORS)),
+    (STRING_LITERAL, r'L?"(?:[^"]|\\.)*"'),
+    (OPERATOR, '|'.join(re.escape(op) for op in OPERATORS)),
 
     ###############################################################
     # Preprocessor
-    ('PP_HASH', r'#'),
-    ('PP_HASHPAIR', r'##'),
+    (PP_HASH, r'#'),
+    (PP_HASHPAIR, r'##'),
 
     ###############################################################
     # Other
-    ('UNEXPECTED', r'.'),
+    (UNEXPECTED, r'.'),
 )
 
 
 TOKEN_REGEX = make_token_regex(TOKEN_DESCRIPTIONS)
 
+MULTI_COMMENT_END_REGEX = re.compile(r'.*\*/')
 
-def lex(code):
-    return tokenize(code, TOKEN_REGEX)
+
+def lex(lines: Iterable[LogicalLine]) -> Iterable[Token]:
+    multi_comment_token = False
+    for line in lines:
+        start = 0
+        if multi_comment_token:
+            match = MULTI_COMMENT_END_REGEX.search(line.text)
+            if not match:
+                # This whole line is inside a multi-line comment!..
+                yield Token(
+                    line=line,
+                    kind='MULTI_COMMENT_CONTINUATION',
+                    value=line.text,
+                    pos=0,
+                )
+                continue
+            start = match.end()
+            multi_comment_token = None
+        tokens = list(tokenize(line, TOKEN_REGEX, start))
+        if tokens and tokens[-1].kind == 'MULTI_COMMENT':
+            multi_comment_token = tokens[-1]
+        yield from tokens
+    if multi_comment_token:
+        multi_comment_token.unexpected("Unterminated multi-line comment")
 
 
 def print_c_tokens(tokens, unexpected_ok=False, **kwargs):
@@ -120,12 +152,8 @@ def main():
         help="Don't error on unexpected tokens")
     args = parser.parse_args()
 
-    if args.file == '-':
-        code = sys.stdin.read()
-    else:
-        code = open(args.file, 'r').read()
-
-    tokens = lex(code)
+    file = SourceFile.load(args.file)
+    tokens = lex(file.lines)
     if args.id:
         for token in tokens:
             sys.stdout.write(token.value)

@@ -2,6 +2,7 @@ import sys
 from typing import List, Iterable, NamedTuple
 from argparse import ArgumentParser
 
+from seavey.sourcefile import SourceFile, LogicalLine
 from seavey.tokenize import make_token_regex, tokenize, Token
 
 
@@ -24,8 +25,9 @@ BNF_TOKEN_DESCRIPTIONS = (
 BNF_TOKEN_REGEX = make_token_regex(BNF_TOKEN_DESCRIPTIONS)
 
 
-def bnf_lex(code):
-    return tokenize(code, BNF_TOKEN_REGEX)
+def bnf_lex(lines: Iterable[LogicalLine]) -> Iterable[Token]:
+    for line in lines:
+        yield from tokenize(line, BNF_TOKEN_REGEX)
 
 
 class BNFCase(NamedTuple):
@@ -87,7 +89,8 @@ def main():
     else:
         code = open(args.file, 'r').read()
 
-    tokens = bnf_lex(code)
+    file = SourceFile.load(args.file)
+    tokens = bnf_lex(file.lines)
     rules = bnf_parse(tokens)
     print_rules(rules)
 
