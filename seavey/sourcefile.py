@@ -5,6 +5,21 @@ from contextlib import nullcontext
 from itertools import islice
 
 
+# https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1256.pdf
+# 5.2.1.1 Trigraph sequences
+TRIGRAPHS = {
+    '??=': '#',
+    '??(': '[',
+    '??/': '\\',
+    '??)': ']',
+    "??'": "^",
+    '??<': '{',
+    '??!': '|',
+    '??>': '}',
+    '??-': '~',
+}
+
+
 class SourceFileInfo(NamedTuple):
 
     # In the sense of os.path.basename
@@ -141,11 +156,12 @@ class SourceFile(NamedTuple):
             linesrepr = repr(self.lines)
         return f'{self.__class__.__name__}(file={self.file!r}, lines={linesrepr})'
 
-    def add_lines(self, source_lines: Iterable[str]):
-        self.lines.extend(iter_logical_lines(self.file, source_lines))
+    def add_lines(self, source_lines: Iterable[str], **kwargs):
+        self.lines.extend(iter_logical_lines(
+            self.file, source_lines, **kwargs))
 
     @classmethod
-    def load(cls, file) -> 'SourceFile':
+    def load(cls, file, **kwargs) -> 'SourceFile':
         if isinstance(file, str):
             filename = file
             if filename == '-':
@@ -162,11 +178,16 @@ class SourceFile(NamedTuple):
             lines=[],
         )
         with ctx:
-            self.add_lines(file)
+            self.add_lines(file, **kwargs)
         return self
 
 
-def iter_logical_lines(file: SourceFileInfo, source_lines: Iterable[str]):
+def iter_logical_lines(
+        file: SourceFileInfo,
+        source_lines: Iterable[str],
+        *,
+        use_trigraphs=False,
+        ):
     r"""
 
         >>> file = SourceFileInfo(filename='a.c', filepath='/src/a.c')
@@ -187,6 +208,10 @@ def iter_logical_lines(file: SourceFileInfo, source_lines: Iterable[str]):
     logical_line_i = None
     logical_splices = []
     for line_i, text in enumerate(source_lines):
+        if use_trigraphs:
+            # Lol gross
+            for trigraph, replacement in TRIGRAPHS.items():
+                text = text.replace(trigraph, replacement)
         escaped_newline = text.endswith('\\\n')
         if escaped_newline:
             text = text[:-2]
