@@ -29,7 +29,19 @@ class LogicalLine(NamedTuple):
     Such lines are "spliced" together with the following line (which may
     itself be spliced to the next, etc).
     A "logical" line means either the result of such splicing, or a raw
-    line which was not spliced."""
+    line which was not spliced.
+
+    See the C99 standard:
+    https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1256.pdf
+
+        Each instance of a backslash character (\) immediately followed by a new-line
+        character is deleted, splicing physical source lines to form logical source lines.
+        Only the last backslash on any physical source line shall be eligible for being part
+        of such a splice. A source file that is not empty shall end in a new-line character,
+        which shall not be immediately preceded by a backslash character before any such
+        splicing takes place.
+
+    """
 
     file: SourceFileInfo
 
