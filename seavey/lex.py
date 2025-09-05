@@ -77,7 +77,7 @@ TOKEN_DESCRIPTIONS = (
     (NEWLINE, r'\n'),
     (WHITESPACE, r'[ \t\v\f]+'),
     (LINE_COMMENT, r'//[^\n]*'),
-    (MULTI_COMMENT, r'/\*.*?(\*/|\n)'),
+    (MULTI_COMMENT, r'/\*.*?(?:\*/|\n)'),
 
     ###############################################################
     # Language elements
