@@ -1,0 +1,135 @@
+
+# Thoughts on how a C runtime would work
+
+We should have a Python class for "memory allocations", i.e. allocated blocks of contiguous memory.
+We should also have "memory locations", which is an allocation plus an offset within it.
+The value of a pointer is precisely a memory location.
+Now, how do we represent the bytes inside an allocation?
+We can't represent them fully as bytes, because we can't represent pointers as bytes.
+Recall, a pointer is a pair (allocation, offset), and allocations are opaque to our C implementation.
+So, the "bytes" within an allocation ..............
+
+
+C types:
+* void
+* basic types
+    * char
+    * signed char, short, int, long, long long
+    * _Bool, unsigned char, unsigned short, unsigned int, unsgned long, unsigned long long
+    * float, double, long double
+    * float _Complex, double _Complex, long double _Complex
+    * float _Imaginary, double _Imaginary, long double _Imaginary
+* enumerated types
+* derived types
+    * array types
+    * structure types
+    * union types
+    * function types
+    * pointer types
+
+...plus qualifiers const, volatile, restrict
+
+For each type, we need to implement:
+* is_compatible(self, other)
+* get_composite_type(self, other)
+* incomplete types
+    * void
+    * array of unknown size
+    * structure or union of unknown content
+* type names, e.g. `int *[3]`, `int (*)[]`, `int (*const [])(unsigned int, ...)`
+
+
+https://en.cppreference.com/w/c/language/object.html
+An object in C is a region of data storage in the execution environment, the contents of which can represent values (a value is the meaning of the contents of an object, when interpreted as having a specific type).
+Every object has
+* size (can be determined with sizeof)
+* alignment requirement(can be determined by _Alignof(until C23)alignof(since C23))(since C11)
+* storage duration (automatic, static, allocated, thread-local)
+* lifetime (equal to storage duration or temporary)
+* effective type (see below)
+* value (which may be indeterminate)
+* optionally, an identifier that denotes this object.
+Objects are created by declarations, allocation functions, string literals, compound literals, and by non-lvalue expressions that return structures or unions with array members.
+
+
+
+https://en.cppreference.com/w/c/language/object.html#Effective_type
+Every object has an effective type, which determines which lvalue accesses are
+valid and which violate the strict aliasing rules.
+If the object was created by a declaration, the declared type of that object is
+the object's effective type.
+
+If the object was created by an allocation function (including realloc), it has
+no declared type.
+Such object acquires an effective type as follows:
+* The first write to that object through an lvalue that has a type other than
+  character type, at which time the type of that lvalue becomes this object's
+  effective type for that write and all subsequent reads.
+* memcpy or memmove copy another object into that object, or copy another object
+  into that object as an array of character type, at which time the effective
+  type of the source object (if it had one) becomes the effective type of this
+  object for that write and all subsequent reads.
+* Any other access to the object with no declared type, the effective type is
+  the type of the lvalue used for the access.
+
+
+https://en.cppreference.com/w/c/language/object.html#Strict_aliasing
+Given an object with effective type T1, using an lvalue expression (typically,
+dereferencing a pointer) of a different type T2 is undefined behavior, unless:
+* T2 and T1 are compatible types.
+* T2 is cvr-qualified version of a type that is compatible with T1.
+* T2 is a signed or unsigned version of a type that is compatible with T1.
+* T2 is an aggregate type or union type type that includes one of the
+  aforementioned types among its members (including, recursively, a member of
+  a subaggregate or contained union).
+* T2 is a character type (char, signed char, or unsigned char).
+
+
+https://en.cppreference.com/w/c/language/compatible_type.html#Compatible_types
+In a C program, the declarations referring to the same object or function in
+different translation units do not have to use the same type.
+They only have to use sufficiently similar types, formally known as compatible
+types.
+Same applies to function calls and lvalue accesses; argument types must be
+compatible with parameter types and lvalue expression type must be compatible
+with the object type that is accessed.
+
+(BAG NOTES: cvr = const+volatile+restrict, VLA = variable-length array)
+
+The types T and U are compatible, if
+* they are the same type (same name or aliases introduced by a typedef)
+* they are identically cvr-qualified versions of compatible unqualified types
+* they are pointer types and are pointing to compatible types
+* they are array types, and
+    * their element types are compatible, and
+    * if both have constant size, that size is the same.
+      Note: arrays of unknown bound are compatible with any array of compatible
+      element type.
+      [VLA is compatible with any array of compatible element type. (since C99)]
+* they are both structure/union/enumeration types, and
+    * (C99) if one is declared with a tag, the other must also be declared with
+      the same tag.
+    * if both are completed types, their members must correspond exactly in
+      number, be declared with compatible types, and have matching names.
+    * additionally, if they are enumerations, corresponding members must also
+      have the same values.
+    * additionally, if they are structures or unions,
+        * Corresponding members must be declared in the same order (structures
+          only)
+        * Corresponding bit-fields must have the same widths.
+* one is an enumerated type and the other is that enumeration's underlying type
+* they are function types, and
+    * their return types are compatible
+    * they both use parameter lists, the number of parameters (including the use
+      of the ellipsis) is the same, and the corresponding parameter, after applying
+      array-to-pointer and function-to-pointer type adjustments and after stripping
+      top-level qualifiers, have compatible types
+    * one is an old-style (parameter-less) definition, the other has a parameter
+      list, the parameter list does not use an ellipsis and each parameter is
+      compatible (after function parameter type adjustment) with the corresponding
+      old-style parameter after default argument promotions
+    * one is an old-style (parameter-less) declaration, the other has a parameter
+      list, the parameter list does not use an ellipsis, and all parameters (after
+      function parameter type adjustment) are unaffected by default argument
+      promotions
+
